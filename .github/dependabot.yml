@@ -1,0 +1,42 @@
+# Dependabot configuration for open-webui-mcp.
+#
+# Two ecosystems are watched:
+#
+# - `uv`: opens PRs when transitive Python deps in `uv.lock` have known CVEs
+#   or version updates. **These PRs are advisory.** Per CONTRIBUTING.md the
+#   vendored files (`pyproject.toml`, `uv.lock`) must stay byte-identical to
+#   upstream `stephanschielke/open-webui-mcp-server`. Treat each PR as a
+#   signal to push the fix upstream and re-pin our SHA — do NOT merge into
+#   `main` directly unless you're consciously accepting fork divergence (and
+#   updating NOTICE accordingly). Limit kept low so the channel doesn't flood.
+#
+# - `github-actions`: workflow files we authored (.github/workflows/{ci,
+#   release-image}.yml). PRs here are mergeable as-is — they only touch our
+#   own CI infrastructure, not the vendored wrapper.
+
+version: 2
+updates:
+  - package-ecosystem: "uv"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "08:00"
+      timezone: "Europe/Paris"
+    open-pull-requests-limit: 5
+    labels:
+      - "dependencies"
+      - "advisory"
+      - "uv"
+
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "08:00"
+      timezone: "Europe/Paris"
+    open-pull-requests-limit: 5
+    labels:
+      - "dependencies"
+      - "github-actions"
