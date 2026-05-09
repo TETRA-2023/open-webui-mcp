@@ -11,7 +11,7 @@ Initial TETRA fork. Image tag matches upstream `pyproject` version verbatim — 
 
 ### Added (TETRA-side)
 - `NOTICE` — fork attribution + modification log.
-- `README.md` — TETRA fleet deployment instructions.
+- `README.md` — deployment instructions, drift-check usage, image tag policy.
 - `CONTRIBUTING.md` — upstream-bump procedure, drift-check workflow.
 - `SECURITY.md` — disclosure policy.
 - `.github/workflows/ci.yml` — gitleaks scan + Docker build validation on PR + `:latest` publish on push to `main`.

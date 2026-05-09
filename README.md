@@ -1,25 +1,24 @@
 # open-webui-mcp
 
-TETRA fleet wrapper of [stephanschielke/open-webui-mcp-server](https://github.com/stephanschielke/open-webui-mcp-server).
+A vendored fork of [stephanschielke/open-webui-mcp-server](https://github.com/stephanschielke/open-webui-mcp-server) packaged for container deployment, with a SHA-pinned upstream snapshot, a published `ghcr.io` image, and a small drift-detection helper.
 
-Vendored at upstream commit `85d88af6e3dd34183a5a0eefb85d474f3e3c2b54` (2026-04-07). See [NOTICE](NOTICE) for fork attribution and rationale.
+Vendored at upstream commit `85d88af6e3dd34183a5a0eefb85d474f3e3c2b54` (2026-04-07). The wrapper source under `src/openwebui_mcp/` is byte-identical to upstream — see [NOTICE](NOTICE) for full attribution.
 
 ## What it does
 
 Exposes OpenWebUI's admin REST API as a Model Context Protocol (MCP) server. Tool definitions are generated from a bundled snapshot of OpenWebUI's OpenAPI spec via [FastMCP](https://github.com/jlowin/fastmcp); 317 tools survive the upstream `RouteMap` filter (after excluding `/ollama/*`, `/openai/*`, `/api/v1/{analytics,evaluations,terminals,pipelines}/*`, and any non-`/api/v1/` paths).
 
-Within the TETRA fleet this image runs as the `open-webui-mcp` sidecar in `TETRA-OPEN-WEBUI`, fronted by the LiteLLM gateway with bearer auth and team-scoped to `TETRA-OPS`. See US #871 in project Tetra for the deployment plan.
+This image is intended to run behind an authenticating MCP gateway (e.g. LiteLLM, an mTLS proxy, or anything that fronts streamable-HTTP MCP). It exposes the full OpenWebUI admin surface — including mutating and destructive operations — by design. Do not expose port 7999 to untrusted networks; always front it with bearer auth or equivalent.
 
 ## Deployment
 
 ```yaml
-# TETRA-OPEN-WEBUI/docker-compose.yml (excerpt)
 services:
   open-webui-mcp:
     image: ghcr.io/tetra-2023/open-webui-mcp:stable
     environment:
-      WEBUI_URL: http://open-webui:8080
-      WEBUI_API_KEY: ${WEBUI_API_KEY}        # admin token, see TETRA-OPEN-WEBUI/stack.env
+      WEBUI_URL: http://open-webui:8080         # base URL of your OpenWebUI
+      WEBUI_API_KEY: ${WEBUI_API_KEY}           # admin token sourced from your secrets store
       MCP_TRANSPORT: http
       MCP_HTTP_HOST: 0.0.0.0
       MCP_HTTP_PORT: "7999"
@@ -42,13 +41,13 @@ docker run --rm -p 7999:7999 \
 
 ## Spec drift check
 
-When bumping OpenWebUI, run the drift check before bumping the wrapper:
+When upgrading OpenWebUI, run the drift check before bumping this wrapper. The bundled OpenAPI snapshot drives tool generation, so a mismatch between the snapshot and live OWUI causes the wrapper to advertise tool schemas that no longer match the running endpoints.
 
 ```bash
-./scripts/check-spec-drift.sh https://owui.example.com  # uses $WEBUI_API_KEY
+WEBUI_API_KEY=... ./scripts/check-spec-drift.sh https://owui.example.com
 ```
 
-Reports added / removed / changed operations between the bundled snapshot and the live OWUI's `/openapi.json`. See [CONTRIBUTING.md](CONTRIBUTING.md) for the full bump procedure.
+Reports added / removed / renamed operations between the bundled snapshot and the live OWUI's `/openapi.json`. See [CONTRIBUTING.md](CONTRIBUTING.md) for the full bump procedure.
 
 ## Tags published on ghcr.io
 
@@ -66,5 +65,4 @@ MIT — see [LICENSE](LICENSE) (verbatim from upstream) and [NOTICE](NOTICE) (fo
 
 - Upstream source: https://github.com/stephanschielke/open-webui-mcp-server
 - Original fork: https://github.com/troylar/open-webui-mcp-server
-- OpenWebUI upstream RFE for first-party admin MCP: https://github.com/open-webui/open-webui/discussions/16891
-- Deployment US: project Tetra (#9), US #871
+- OpenWebUI upstream RFE for a first-party admin MCP: https://github.com/open-webui/open-webui/discussions/16891

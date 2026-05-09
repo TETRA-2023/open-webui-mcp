@@ -12,19 +12,19 @@ pyproject.toml               vendored verbatim from upstream (do NOT patch proje
 uv.lock                      vendored verbatim from upstream
 LICENSE                      vendored verbatim from upstream (MIT)
 NOTICE                       fork attribution + modification log
-.github/workflows/           TETRA fleet release pipeline
+.github/workflows/           release pipeline (gitleaks + lint + Docker build/publish)
 scripts/check-spec-drift.sh  drift-detection helper
 tests/                       vendored upstream integration tests (require docker-compose; not run in CI)
 ```
 
-Vendored files must stay byte-identical to upstream so a future re-vendor is a clean overwrite. Our release identifier is carried by the git tag (`v<upstream-version>-tetra<N>`), not by patching upstream version strings.
+Vendored files must stay byte-identical to upstream so a future re-vendor is a clean overwrite. Our release identifier is carried by the git tag (which matches upstream's version verbatim), not by patching upstream version strings.
 
 ## When to bump the upstream pin
 
 Bump in two situations:
 
 1. **Upstream commits substantive changes** to `src/openwebui_mcp/` or to the bundled `specs/open-webui.openapi.json` — typically when the upstream maintainer re-snapshots the OpenWebUI OpenAPI spec for a new OWUI release.
-2. **We bump the OpenWebUI image in `TETRA-OPEN-WEBUI/docker-compose.yml`**. The bundled spec must match the running OWUI; otherwise the wrapper will advertise tool signatures that drift from what live OWUI accepts.
+2. **The OpenWebUI version your deployment runs is upgraded.** The bundled spec must match the running OWUI; otherwise the wrapper will advertise tool signatures that drift from what live OWUI accepts.
 
 These often go together but not always. Run the drift check (below) to decide.
 
@@ -61,7 +61,7 @@ These often go together but not always. Run the drift check (below) to decide.
    done
    ```
 
-4. **Re-run the T01 source audit** (see US #871 audit report for the template). Re-classify any new / changed operations. Update `NOTICE` with the new SHA.
+4. **Re-audit upstream source.** Read `src/openwebui_mcp/{main,auth,openapi_provider}.py` for any logic changes between SHAs. Inventory the operations that survive the `RouteMap` filter in `openapi_provider.py` against the bundled spec — re-classify any added / removed / renamed operations. Update `NOTICE` with the new SHA.
 
 5. **Update CHANGELOG** with an entry naming the new SHA and the OWUI version it targets. We do **not** patch `pyproject.toml`'s `project.version` — that field is kept byte-identical to upstream. The git tag matches the upstream version verbatim.
 
@@ -75,9 +75,9 @@ These often go together but not always. Run the drift check (below) to decide.
 
    The `Release Image` workflow publishes `:stable` + `:<tag-without-leading-v>` to ghcr.io (e.g., `:0.2.3`).
 
-   *Edge case*: if a TETRA-side change (CI workflow, drift script, README) needs to ship without an upstream pin bump, force-retag (delete `v<version>` then re-tag) — accepted because it only re-publishes a deterministic build of the same vendored source. Note this in the CHANGELOG entry. If this becomes frequent, reintroduce a `-tetraN` suffix scheme.
+   *Edge case*: if a fork-side change (CI workflow, drift script, README) needs to ship without an upstream pin bump, force-retag (delete `v<version>` then re-tag) — accepted because it only re-publishes a deterministic build of the same vendored source. Note this in the CHANGELOG entry. If this becomes frequent, introduce a `-N` suffix scheme on the tag.
 
-7. **Smoke** with the new image against staging OWUI, then bump both `open-webui` and `open-webui-mcp` image pins in `TETRA-OPEN-WEBUI/docker-compose.yml` together.
+7. **Smoke** with the new image against a staging OpenWebUI, then bump both the `open-webui` and `open-webui-mcp` image pins in your deployment compose together.
 
 ## What we do **not** patch in this repo
 
@@ -91,7 +91,7 @@ If you're reaching for a wrapper-source change, that probably belongs upstream.
 
 - `:latest` publishes automatically on every push to `main` (CI `docker` job).
 - `:stable` + `:<version>` publish on `v*.*.*` git tags (Release Image workflow).
-- Space tag-driven releases ≥30 min apart per fleet convention.
+- Space tag-driven releases ≥30 min apart to avoid GitHub Actions release-cadence rate limits.
 
 ## License
 
