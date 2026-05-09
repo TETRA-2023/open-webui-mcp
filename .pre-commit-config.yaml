@@ -1,4 +1,4 @@
-# Pre-commit hooks for the open-webui-mcp TETRA fork.
+# Pre-commit hooks for the open-webui-mcp fork.
 #
 # We do not run ruff or pytest here: src/ and tests/ are vendored byte-identical
 # from upstream, and the only files we author are bash (scripts/) and YAML
