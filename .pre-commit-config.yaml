@@ -1,0 +1,22 @@
+# Pre-commit hooks for the open-webui-mcp TETRA fork.
+#
+# We do not run ruff or pytest here: src/ and tests/ are vendored byte-identical
+# from upstream, and the only files we author are bash (scripts/) and YAML
+# (.github/workflows/). If we ever add a Python helper, add ruff at that point.
+
+repos:
+  - repo: https://github.com/gitleaks/gitleaks
+    rev: v8.30.1
+    hooks:
+      - id: gitleaks
+
+  - repo: https://github.com/shellcheck-py/shellcheck-py
+    rev: v0.10.0.1
+    hooks:
+      - id: shellcheck
+        files: ^scripts/.*\.sh$
+
+  - repo: https://github.com/rhysd/actionlint
+    rev: v1.7.7
+    hooks:
+      - id: actionlint

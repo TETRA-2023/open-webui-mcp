@@ -25,8 +25,23 @@ jobs:
       - name: Scan repo (full history)
         run: gitleaks detect --no-banner --redact --verbose
 
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Run shellcheck on scripts/
+        run: |
+          set -euo pipefail
+          sudo apt-get update -y >/dev/null
+          sudo apt-get install -y shellcheck >/dev/null
+          find scripts -type f -name '*.sh' -print0 | xargs -0 -r shellcheck
+
+      - name: Run actionlint on workflows
+        uses: raven-actions/actionlint@v2
+
   docker:
-    needs: [secrets]
+    needs: [secrets, lint]
     runs-on: ubuntu-latest
     permissions:
       contents: read

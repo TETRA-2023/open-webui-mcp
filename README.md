@@ -27,7 +27,7 @@ services:
     depends_on: [open-webui]
 ```
 
-Pin to a specific tag (`:0.2.2-tetra1`) or digest in production. `:stable` floats with the most recent release tag; `:latest` floats with `main`.
+Pin to a specific tag (`:0.2.2`) or digest in production. `:stable` floats with the most recent release tag; `:latest` floats with `main`.
 
 ## Local run (debug)
 

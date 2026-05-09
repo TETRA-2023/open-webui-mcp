@@ -63,17 +63,19 @@ These often go together but not always. Run the drift check (below) to decide.
 
 4. **Re-run the T01 source audit** (see US #871 audit report for the template). Re-classify any new / changed operations. Update `NOTICE` with the new SHA.
 
-5. **Update CHANGELOG** with an entry naming the new SHA and the OWUI version it targets. We do **not** patch `pyproject.toml`'s `project.version` — that field is kept byte-identical to upstream. Our release identifier lives in the git tag.
+5. **Update CHANGELOG** with an entry naming the new SHA and the OWUI version it targets. We do **not** patch `pyproject.toml`'s `project.version` — that field is kept byte-identical to upstream. The git tag matches the upstream version verbatim.
 
 6. **Commit and tag**:
 
    ```bash
    git commit -am "chore: re-pin upstream to <new-sha> for OWUI <x.y.z>"
-   git tag v<upstream-version>-tetra<N>     # e.g., v0.2.2-tetra2
+   git tag v<upstream-version>      # e.g., v0.2.3
    git push --follow-tags
    ```
 
-   The `Release Image` workflow publishes `:stable` + `:<tag-without-leading-v>` to ghcr.io (e.g., `:0.2.2-tetra2`).
+   The `Release Image` workflow publishes `:stable` + `:<tag-without-leading-v>` to ghcr.io (e.g., `:0.2.3`).
+
+   *Edge case*: if a TETRA-side change (CI workflow, drift script, README) needs to ship without an upstream pin bump, force-retag (delete `v<version>` then re-tag) — accepted because it only re-publishes a deterministic build of the same vendored source. Note this in the CHANGELOG entry. If this becomes frequent, reintroduce a `-tetraN` suffix scheme.
 
 7. **Smoke** with the new image against staging OWUI, then bump both `open-webui` and `open-webui-mcp` image pins in `TETRA-OPEN-WEBUI/docker-compose.yml` together.
 
