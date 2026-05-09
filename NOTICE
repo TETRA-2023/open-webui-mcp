@@ -1,0 +1,35 @@
+open-webui-mcp (TETRA hard fork)
+================================
+
+This product is a derivative work of:
+
+    stephanschielke/open-webui-mcp-server
+    https://github.com/stephanschielke/open-webui-mcp-server
+    Copyright (c) 2026 Stephan Schielke
+    (originally forked from troylar/open-webui-mcp-server, Copyright (c) 2026 Troy Larson)
+    Licensed under the MIT License.
+
+Imported source: commit 85d88af6e3dd34183a5a0eefb85d474f3e3c2b54
+                 (HEAD of upstream `main` as of 2026-05-09).
+
+The original LICENSE file is retained verbatim and remains in force for the
+material it covers. Modifications in this fork are also released under the
+MIT License.
+
+Modifications in this fork (high-level):
+- TETRA fleet release pipeline (.github/workflows/{ci,release-image}.yml) for
+  automated `:latest` and tag-driven `:stable` / `:<version>` publication on
+  ghcr.io/tetra-2023/open-webui-mcp.
+- CONTRIBUTING.md documents the upstream-bump procedure (re-pin SHA, re-audit,
+  rebuild) so the spec snapshot stays aligned with the running OpenWebUI.
+- scripts/check-spec-drift.sh — runtime helper to diff the bundled OpenAPI
+  snapshot against a live OpenWebUI's /openapi.json before deciding to bump.
+- README.md, CHANGELOG.md, SECURITY.md adapted for TETRA fleet conventions.
+
+No source-level changes to the wrapper itself — all of `src/openwebui_mcp/`
+is byte-identical to the imported commit.
+
+This repository is intentionally disconnected from upstream — there is no
+GitHub fork relationship. A local `upstream` git remote pointing at
+stephanschielke/open-webui-mcp-server can be configured for occasional manual
+cherry-picks of upstream changes.

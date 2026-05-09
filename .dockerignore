@@ -1,0 +1,6 @@
+# Include only what the build needs (mirrors upstream Dockerfile COPY layout)
+*
+!pyproject.toml
+!uv.lock
+!README.md
+!src/
