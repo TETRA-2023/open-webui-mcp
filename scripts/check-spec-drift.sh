@@ -80,7 +80,19 @@ if [[ -n "$COMMON" ]]; then
   done <<<"$COMMON"
 fi
 
-count() { [[ -z "$1" ]] && echo 0 || echo "$1" | wc -l ; }
+count() {
+  if [[ -z "$1" ]]; then
+    echo 0
+  else
+    echo "$1" | wc -l
+  fi
+}
+
+# Indent each line of a string by two spaces. Empty input yields no output.
+indent() {
+  [[ -z "$1" ]] && return
+  echo "  ${1//$'\n'/$'\n  '}"
+}
 
 echo ""
 echo "=== Spec drift report ==="
@@ -95,14 +107,14 @@ DRIFT=0
 if [[ -n "$REMOVED" ]]; then
   DRIFT=1
   echo "--- REMOVED in live OWUI ($(count "$REMOVED")) — wrapper would advertise tools that 404 ---"
-  echo "$REMOVED" | sed 's/^/  /'
+  indent "$REMOVED"
   echo ""
 fi
 
 if [[ -n "$ADDED" ]]; then
   DRIFT=1
   echo "--- ADDED in live OWUI ($(count "$ADDED")) — wrapper would not expose these tools ---"
-  echo "$ADDED" | sed 's/^/  /'
+  indent "$ADDED"
   echo ""
 fi
 
@@ -110,7 +122,7 @@ RENAMED_TRIM="${RENAMED#$'\n'}"
 if [[ -n "$RENAMED_TRIM" ]]; then
   DRIFT=1
   echo "--- operationId renames (path+method match) ---"
-  echo "$RENAMED_TRIM" | sed 's/^/  /'
+  indent "$RENAMED_TRIM"
   echo ""
 fi
 
