@@ -54,7 +54,7 @@ dependencies = [
     "fastmcp>=3.0.0,<4",
     "httpx>=0.28.1",
     "pydantic>=2.12.5",
-    "uvicorn>=0.42.0",
+    "uvicorn>=0.46.0",
 ]
 
 [project.optional-dependencies]
