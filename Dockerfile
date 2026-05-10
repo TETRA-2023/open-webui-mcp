@@ -16,6 +16,11 @@ RUN uv --python-preference=only-system sync --locked --no-install-project
 # Copy application code
 COPY src/ ./src/
 
+# TETRA-side patch: overwrite the upstream-bundled OpenAPI snapshot with one
+# captured from our running OpenWebUI. Required because upstream pins SHAs
+# that lag the OWUI version we deploy; see CHANGELOG entry for 0.2.2-1.
+COPY patches/specs/open-webui.openapi.json ./src/openwebui_mcp/specs/open-webui.openapi.json
+
 # Install the project itself
 RUN uv --python-preference=only-system sync --locked
 

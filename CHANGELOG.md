@@ -2,6 +2,17 @@
 
 All notable changes to this fork are documented here. The wrapper source itself is vendored verbatim from upstream — entries below describe TETRA-side packaging changes.
 
+## [0.2.2-1] — 2026-05-10
+
+TETRA-side OpenAPI spec patch on top of unchanged upstream pin `85d88af`. Upstream's bundled snapshot (committed 2026-04-07) lags the OpenWebUI version we deploy: live `chat.tetra-ai.fr` `/openapi.json` reports 460 operations vs. 422 bundled, with body-schema additions to `/api/v1/auths/admin/config` (new required `ENABLE_AUTOMATIONS`, `ENABLE_CALENDAR`) that block configuration writes through the wrapper. Default policy in CONTRIBUTING.md is to wait for upstream re-snapshot, but upstream has not moved since the initial pin, so this release applies the documented fallback (b): snapshot the spec ourselves.
+
+### Added (TETRA-side)
+- `patches/specs/open-webui.openapi.json` — OpenAPI snapshot captured from `https://chat.tetra-ai.fr/openapi.json` on 2026-05-10. 957 KB, 2-space indent, sort_keys to match upstream formatting.
+- `Dockerfile` — `COPY patches/specs/open-webui.openapi.json` overwrites the upstream-bundled spec at image build, after the byte-identical `COPY src/`. Source tree under `src/openwebui_mcp/specs/` remains byte-identical to the upstream pin.
+
+### Tag scheme
+This release introduces the `-N` suffix scheme contemplated in CONTRIBUTING.md for downstream-only patches that ship without bumping the upstream SHA pin. `pyproject.toml` `project.version` stays `0.2.2` (byte-identical to upstream); the git tag is `v0.2.2-1`. Image tags published: `:stable`, `:0.2.2-1`.
+
 ## [0.2.2] — 2026-05-09
 
 Initial TETRA fork. Image tag matches upstream `pyproject` version verbatim — by design, since this fork does not patch wrapper source. Future releases require a new upstream SHA pin (see CONTRIBUTING.md).

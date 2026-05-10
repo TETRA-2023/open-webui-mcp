@@ -7,11 +7,12 @@ This is a vendored fork of `stephanschielke/open-webui-mcp-server`. We do not ma
 ```
 src/openwebui_mcp/           vendored verbatim from upstream @ pinned SHA
 src/openwebui_mcp/specs/     bundled OpenAPI snapshot (~872 KB) — drives tool generation
-Dockerfile                   vendored verbatim from upstream
+Dockerfile                   vendored from upstream; may carry small TETRA-side patches (e.g., COPY of patches/specs/)
 pyproject.toml               vendored verbatim from upstream (do NOT patch project.version)
 uv.lock                      vendored verbatim from upstream
 LICENSE                      vendored verbatim from upstream (MIT)
 NOTICE                       fork attribution + modification log
+patches/                     downstream-only assets layered over the byte-identical vendor tree at image build (see "Downstream-only spec patch" below)
 .github/workflows/           release pipeline (gitleaks + lint + Docker build/publish)
 scripts/check-spec-drift.sh  drift-detection helper
 tests/                       vendored upstream integration tests (require docker-compose; not run in CI)
@@ -83,9 +84,28 @@ These often go together but not always. Run the drift check (below) to decide.
 
 - The wrapper's tool generation logic (`openapi_provider.py`).
 - The auth middleware (`auth.py`).
-- The OpenWebUI OpenAPI snapshot — we use whatever upstream ships at the pinned SHA. If the snapshot is wrong for our running OWUI, we wait for upstream or fork upward.
+- The OpenWebUI OpenAPI snapshot under `src/openwebui_mcp/specs/` — that file is byte-identical to upstream. When upstream's snapshot lags our deployed OWUI we don't edit it in place; instead we either wait for upstream or apply a downstream-only spec patch (next section).
 
 If you're reaching for a wrapper-source change, that probably belongs upstream.
+
+## Downstream-only spec patch (`-N` suffix releases)
+
+Default policy when the bundled spec lags live OWUI is to wait for upstream to re-snapshot. When upstream has stalled long enough that waiting is no longer tenable, we apply a TETRA-side spec patch on top of the unchanged upstream pin:
+
+1. Snapshot the live OWUI's `/openapi.json` into `patches/specs/open-webui.openapi.json` using 2-space indent and sorted keys to match upstream's formatting:
+
+   ```bash
+   curl -fsSL https://owui.example.com/openapi.json \
+     | python3 -c 'import json,sys; d=json.load(sys.stdin); json.dump(d, open("patches/specs/open-webui.openapi.json","w"), indent=2, sort_keys=True)'
+   ```
+
+2. Confirm the Dockerfile has a `COPY patches/specs/open-webui.openapi.json ./src/openwebui_mcp/specs/open-webui.openapi.json` line after `COPY src/ ./src/`. The byte-identical vendor tree at `src/openwebui_mcp/specs/` is left alone — the patch lands only in the built image.
+
+3. Tag with the `-N` suffix scheme: keep the upstream `project.version` and append `-1`, `-2`, ... per consecutive downstream-only release. Example: `v0.2.2-1`, `v0.2.2-2`. The release workflow's `v*.*.*` glob accepts these tags; the version-extraction step strips the leading `v` and feeds the remainder to the image tag (`:0.2.2-1`).
+
+4. Document the patch in `CHANGELOG.md` under a `[<version>-<N>]` heading, naming the upstream SHA still in force, the OWUI source for the spec, and the operations / schema deltas the patch resolves.
+
+5. Reset the suffix back to `-1` (or drop it) the next time the upstream SHA pin is bumped — the patch is then either folded into upstream's snapshot or carried forward as `-1` again on the new pin.
 
 ## Releasing
 

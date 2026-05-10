@@ -25,6 +25,11 @@ Modifications in this fork (high-level):
 - scripts/check-spec-drift.sh — runtime helper to diff the bundled OpenAPI
   snapshot against a live OpenWebUI's /openapi.json before deciding to bump.
 - README.md, CHANGELOG.md, SECURITY.md adapted for TETRA fleet conventions.
+- patches/specs/open-webui.openapi.json — TETRA-side OpenAPI snapshot applied
+  at image build (Dockerfile COPY) to overwrite the upstream-bundled spec
+  when upstream's pinned SHA lags the OWUI version we deploy. Tag suffix
+  `-N` (e.g., 0.2.2-1) marks releases that ship such a downstream-only patch
+  on top of an unchanged upstream pin.
 
 No source-level changes to the wrapper itself — all of `src/openwebui_mcp/`
 is byte-identical to the imported commit.
