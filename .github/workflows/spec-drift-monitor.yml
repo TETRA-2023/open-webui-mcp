@@ -1,0 +1,109 @@
+name: Spec Drift Monitor
+
+on:
+  schedule:
+    - cron: "0 6 * * *"   # daily at 06:00 UTC
+  workflow_dispatch:
+    inputs:
+      owui_url:
+        description: "OpenWebUI URL to probe (overrides repo variable OWUI_URL)"
+        required: false
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    env:
+      ISSUE_LABEL: spec-drift
+      ISSUE_TITLE: "Spec drift detected against live OpenWebUI"
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Resolve target URL
+        id: url
+        env:
+          INPUT_URL: ${{ github.event.inputs.owui_url }}
+          VAR_URL: ${{ vars.OWUI_URL }}
+        run: |
+          URL="${INPUT_URL:-$VAR_URL}"
+          if [[ -z "$URL" ]]; then
+            echo "::error::No OpenWebUI URL configured. Set the OWUI_URL repository variable or pass it via workflow_dispatch."
+            exit 1
+          fi
+          echo "url=$URL" >> "$GITHUB_OUTPUT"
+
+      - name: Install jq
+        run: sudo apt-get update -y >/dev/null && sudo apt-get install -y jq >/dev/null
+
+      - name: Run drift check
+        id: drift
+        env:
+          OWUI_URL: ${{ steps.url.outputs.url }}
+        run: |
+          chmod +x scripts/check-spec-drift.sh scripts/check-body-schema-drift.py
+          set +e
+          ./scripts/check-spec-drift.sh "$OWUI_URL" >drift-report.txt 2>&1
+          RC=$?
+          set -e
+          echo "rc=$RC" >> "$GITHUB_OUTPUT"
+          echo "----- drift report -----"
+          cat drift-report.txt
+          echo "------------------------"
+          if [[ "$RC" -eq 2 ]]; then
+            echo "::error::Drift script errored (exit 2)."
+            exit 1
+          fi
+
+      - name: Locate existing tracking issue
+        id: issue
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          NUM=$(gh issue list --state open --label "$ISSUE_LABEL" --search "in:title \"$ISSUE_TITLE\"" --json number,title --jq '.[] | select(.title == env.ISSUE_TITLE) | .number' | head -1)
+          echo "number=${NUM:-}" >> "$GITHUB_OUTPUT"
+
+      - name: Build issue body
+        if: steps.drift.outputs.rc == '1'
+        id: body
+        env:
+          OWUI_URL: ${{ steps.url.outputs.url }}
+        run: |
+          {
+            echo "Drift was detected by the daily monitor on $(date -u +%Y-%m-%dT%H:%M:%SZ) against \`$OWUI_URL\`."
+            echo
+            echo "Workflow run: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+            echo "Commit: \`${{ github.sha }}\`"
+            echo
+            echo "<details><summary>drift report</summary>"
+            echo
+            echo '```'
+            cat drift-report.txt
+            echo '```'
+            echo
+            echo "</details>"
+            echo
+            echo "_This issue is auto-managed: it is updated daily and auto-closed when drift clears. Do not rename the title._"
+          } > issue-body.md
+
+      - name: Open or update tracking issue (drift detected)
+        if: steps.drift.outputs.rc == '1'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          if [[ -n "${{ steps.issue.outputs.number }}" ]]; then
+            gh issue edit "${{ steps.issue.outputs.number }}" --body-file issue-body.md
+            echo "Updated existing issue #${{ steps.issue.outputs.number }}"
+          else
+            gh label create "$ISSUE_LABEL" --color "d73a4a" --description "Drift between wrapper spec and live OpenWebUI" 2>/dev/null || true
+            gh issue create --title "$ISSUE_TITLE" --label "$ISSUE_LABEL" --body-file issue-body.md
+          fi
+
+      - name: Close tracking issue (drift cleared)
+        if: steps.drift.outputs.rc == '0' && steps.issue.outputs.number != ''
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh issue close "${{ steps.issue.outputs.number }}" --comment "Drift cleared as of $(date -u +%Y-%m-%dT%H:%M:%SZ). Auto-closed by spec-drift monitor (run ${{ github.run_id }})."

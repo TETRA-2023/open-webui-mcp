@@ -3,6 +3,15 @@ name: Release Image
 on:
   push:
     tags: ["v*.*.*"]
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: "Tag or SHA to build (must already exist)"
+        required: true
+      skip_drift_check:
+        description: "Bypass the live-OWUI drift gate (emergency only)"
+        type: boolean
+        default: false
 
 jobs:
   publish:
@@ -12,6 +21,9 @@ jobs:
       packages: write
     steps:
       - uses: actions/checkout@v6
+        with:
+          ref: ${{ github.event.inputs.ref || github.ref }}
+          fetch-depth: 0   # tag annotation lookup needs full history
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v4
@@ -22,7 +34,39 @@ jobs:
 
       - name: Extract version from tag
         id: version
-        run: echo "version=${GITHUB_REF_NAME#v}" >> "$GITHUB_OUTPUT"
+        run: |
+          REF="${{ github.event.inputs.ref || github.ref_name }}"
+          echo "version=${REF#v}" >> "$GITHUB_OUTPUT"
+
+      - name: Read tag annotation for drift opt-out
+        id: tag_opts
+        run: |
+          REF="${{ github.event.inputs.ref || github.ref_name }}"
+          MSG=$(git tag -l --format='%(contents)' "$REF" 2>/dev/null || true)
+          if printf '%s' "$MSG" | grep -q '\[skip-drift\]'; then
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+            echo "Tag annotation contains [skip-drift] — drift gate will be bypassed."
+          else
+            echo "skip=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Pre-release drift gate
+        if: |
+          steps.tag_opts.outputs.skip != 'true' &&
+          github.event.inputs.skip_drift_check != 'true'
+        env:
+          OWUI_URL: ${{ vars.OWUI_URL }}
+        run: |
+          if [[ -z "$OWUI_URL" ]]; then
+            echo "::error::Repo variable OWUI_URL is not set. Set it to the production OpenWebUI URL"
+            echo "::error::(e.g., https://owui.example.com), or bypass via [skip-drift] in the tag"
+            echo "::error::message / workflow_dispatch with skip_drift_check=true."
+            exit 1
+          fi
+          sudo apt-get update -y >/dev/null
+          sudo apt-get install -y jq >/dev/null
+          chmod +x scripts/check-spec-drift.sh scripts/check-body-schema-drift.py
+          ./scripts/check-spec-drift.sh "$OWUI_URL"
 
       - name: Log in to GHCR
         uses: docker/login-action@v4

@@ -1,35 +1,87 @@
 #!/usr/bin/env bash
-# check-spec-drift.sh — diff the bundled OpenAPI snapshot against a live OpenWebUI's /openapi.json.
+# check-spec-drift.sh — diff the wrapper's OpenAPI snapshot against a live OpenWebUI's /openapi.json.
 #
 # Usage:
-#   WEBUI_API_KEY=... ./scripts/check-spec-drift.sh https://owui.example.com
+#   WEBUI_API_KEY=... ./scripts/check-spec-drift.sh [--source <path>] https://owui.example.com
+#
+# Effective-spec resolution (highest priority first):
+#   1. --source <path>            explicit override
+#   2. patches/specs/open-webui.openapi.json   TETRA-side -N spec patch (when present)
+#   3. src/openwebui_mcp/specs/open-webui.openapi.json   upstream-pinned snapshot
 #
 # Reports:
-#   - operations present in the bundled spec but missing from live OWUI (removed)
-#   - operations present in live OWUI but missing from the bundled spec (added)
-#   - operations present in both with method-level differences (changed)
+#   - operations present in the wrapper spec but missing from live OWUI (removed)
+#   - operations present in live OWUI but missing from the wrapper spec (added)
+#   - operations present in both with operationId renames
+#   - operations present in both with body / parameter / response schema drift
+#     (delegated to scripts/check-body-schema-drift.py)
 #
 # Exit code: 0 if no drift, 1 if any drift detected, 2 on usage / fetch error.
 #
-# Requires: bash, curl, jq.
+# Requires: bash, curl, jq, python3 (for body-schema drift).
 
 set -euo pipefail
 
-if [[ $# -lt 1 || "${1:-}" == "-h" || "${1:-}" == "--help" ]]; then
-  sed -n '2,15p' "$0"
-  exit 2
+SOURCE_OVERRIDE=""
+WEBUI_URL=""
+
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    -h|--help)
+      sed -n '2,21p' "$0"
+      exit 2
+      ;;
+    --source)
+      [[ $# -ge 2 ]] || { echo "ERROR: --source requires a path" >&2; exit 2; }
+      SOURCE_OVERRIDE="$2"
+      shift 2
+      ;;
+    --source=*)
+      SOURCE_OVERRIDE="${1#--source=}"
+      shift
+      ;;
+    -*)
+      echo "ERROR: unknown flag: $1" >&2
+      exit 2
+      ;;
+    *)
+      [[ -z "$WEBUI_URL" ]] || { echo "ERROR: too many positional args" >&2; exit 2; }
+      WEBUI_URL="${1%/}"
+      shift
+      ;;
+  esac
+done
+
+[[ -n "$WEBUI_URL" ]] || { sed -n '2,21p' "$0"; exit 2; }
+
+REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+PATCHES_SPEC="$REPO_ROOT/patches/specs/open-webui.openapi.json"
+PINNED_SPEC="$REPO_ROOT/src/openwebui_mcp/specs/open-webui.openapi.json"
+BODY_DRIFT_SCRIPT="$REPO_ROOT/scripts/check-body-schema-drift.py"
+
+if [[ -n "$SOURCE_OVERRIDE" ]]; then
+  WRAPPER_SPEC="$SOURCE_OVERRIDE"
+  WRAPPER_SOURCE="override"
+elif [[ -f "$PATCHES_SPEC" ]]; then
+  WRAPPER_SPEC="$PATCHES_SPEC"
+  WRAPPER_SOURCE="patches/ (TETRA-side -N patch)"
+else
+  WRAPPER_SPEC="$PINNED_SPEC"
+  WRAPPER_SOURCE="src/ (upstream pin)"
 fi
 
-WEBUI_URL="${1%/}"
-BUNDLED_SPEC="$(dirname "$0")/../src/openwebui_mcp/specs/open-webui.openapi.json"
-
-if [[ ! -f "$BUNDLED_SPEC" ]]; then
-  echo "ERROR: bundled spec not found at $BUNDLED_SPEC" >&2
+if [[ ! -f "$WRAPPER_SPEC" ]]; then
+  echo "ERROR: wrapper spec not found at $WRAPPER_SPEC" >&2
   exit 2
 fi
 
 if ! command -v jq >/dev/null 2>&1; then
   echo "ERROR: jq is required" >&2
+  exit 2
+fi
+
+if ! command -v python3 >/dev/null 2>&1; then
+  echo "ERROR: python3 is required (for body-schema drift)" >&2
   exit 2
 fi
 
@@ -57,22 +109,22 @@ inventory() {
   ' "$1" | sort
 }
 
-BUNDLED_OPS=$(inventory "$BUNDLED_SPEC")
+WRAPPER_OPS=$(inventory "$WRAPPER_SPEC")
 LIVE_OPS=$(inventory "$LIVE_SPEC")
 
 # Key on path+method for set diff (operationId may rename without semantic change).
-BUNDLED_KEYS=$(echo "$BUNDLED_OPS" | awk -F'\t' '{print $1"\t"$2}' | sort -u)
+WRAPPER_KEYS=$(echo "$WRAPPER_OPS" | awk -F'\t' '{print $1"\t"$2}' | sort -u)
 LIVE_KEYS=$(echo "$LIVE_OPS"    | awk -F'\t' '{print $1"\t"$2}' | sort -u)
 
-REMOVED=$(comm -23 <(echo "$BUNDLED_KEYS") <(echo "$LIVE_KEYS"))
-ADDED=$(  comm -13 <(echo "$BUNDLED_KEYS") <(echo "$LIVE_KEYS"))
+REMOVED=$(comm -23 <(echo "$WRAPPER_KEYS") <(echo "$LIVE_KEYS"))
+ADDED=$(  comm -13 <(echo "$WRAPPER_KEYS") <(echo "$LIVE_KEYS"))
 
 # operationId-rename detection on the path+method intersection
-COMMON=$(comm -12 <(echo "$BUNDLED_KEYS") <(echo "$LIVE_KEYS"))
+COMMON=$(comm -12 <(echo "$WRAPPER_KEYS") <(echo "$LIVE_KEYS"))
 RENAMED=""
 if [[ -n "$COMMON" ]]; then
   while IFS=$'\t' read -r p m ; do
-    bid=$(awk -F'\t' -v p="$p" -v m="$m" '$1==p && $2==m {print $3}' <<<"$BUNDLED_OPS")
+    bid=$(awk -F'\t' -v p="$p" -v m="$m" '$1==p && $2==m {print $3}' <<<"$WRAPPER_OPS")
     lid=$(awk -F'\t' -v p="$p" -v m="$m" '$1==p && $2==m {print $3}' <<<"$LIVE_OPS")
     if [[ "$bid" != "$lid" ]]; then
       RENAMED+=$'\n'"$p"$'\t'"$m"$'\t'"$bid -> $lid"
@@ -96,10 +148,11 @@ indent() {
 
 echo ""
 echo "=== Spec drift report ==="
-echo "Bundled spec: $BUNDLED_SPEC ($(jq -r '.info.version // "?"' "$BUNDLED_SPEC"))"
+echo "Wrapper spec: $WRAPPER_SPEC"
+echo "  source:     $WRAPPER_SOURCE ($(jq -r '.info.version // "?"' "$WRAPPER_SPEC"))"
 echo "Live spec:    $WEBUI_URL/openapi.json ($(jq -r '.info.version // "?"' "$LIVE_SPEC"))"
 echo ""
-echo "Bundled ops: $(count "$BUNDLED_KEYS")    Live ops: $(count "$LIVE_KEYS")"
+echo "Wrapper ops: $(count "$WRAPPER_KEYS")    Live ops: $(count "$LIVE_KEYS")"
 echo ""
 
 DRIFT=0
@@ -126,12 +179,24 @@ if [[ -n "$RENAMED_TRIM" ]]; then
   echo ""
 fi
 
+# Body / parameter / response schema drift on the operations present in both.
+echo "--- body-schema drift (requestBody / parameters / responses) ---"
+set +e
+python3 "$BODY_DRIFT_SCRIPT" "$WRAPPER_SPEC" "$LIVE_SPEC"
+BODY_RC=$?
+set -e
+if [[ "$BODY_RC" -eq 1 ]]; then
+  DRIFT=1
+elif [[ "$BODY_RC" -ne 0 ]]; then
+  echo "ERROR: body-schema drift script exited $BODY_RC" >&2
+  exit 2
+fi
+echo ""
+
 if [[ "$DRIFT" -eq 0 ]]; then
-  echo "No drift detected. Bundled snapshot matches live OWUI's path+method inventory."
+  echo "No drift detected. Wrapper spec matches live OWUI's path+method inventory and body schemas."
   exit 0
 else
-  echo "Drift detected. Re-pin upstream SHA + re-audit before bumping the wrapper."
-  echo "(Schema-level drift inside operation request/response bodies is NOT detected by this script —"
-  echo " add manual smoke for any tool you depend on heavily.)"
+  echo "Drift detected. Either re-vendor upstream + bump the SHA pin, or apply a -N spec patch (see CONTRIBUTING.md)."
   exit 1
 fi
