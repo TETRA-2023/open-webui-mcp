@@ -4760,6 +4760,11 @@
             "title": "Automations",
             "type": "boolean"
           },
+          "calendar": {
+            "default": true,
+            "title": "Calendar",
+            "type": "boolean"
+          },
           "channels": {
             "default": true,
             "title": "Channels",
@@ -4805,7 +4810,6 @@
         "type": "object"
       },
       "FeedbackForm": {
-        "additionalProperties": true,
         "properties": {
           "data": {
             "anyOf": [
@@ -10888,6 +10892,11 @@
           "prompts": {
             "default": false,
             "title": "Prompts",
+            "type": "boolean"
+          },
+          "public_calendars": {
+            "default": false,
+            "title": "Public Calendars",
             "type": "boolean"
           },
           "public_chats": {
@@ -31107,25 +31116,6 @@
         ]
       }
     },
-    "/api/v1/retrieval/": {
-      "get": {
-        "operationId": "get_status_api_v1_retrieval__get",
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {}
-              }
-            },
-            "description": "Successful Response"
-          }
-        },
-        "summary": "Get Status",
-        "tags": [
-          "retrieval"
-        ]
-      }
-    },
     "/api/v1/retrieval/config": {
       "get": {
         "operationId": "get_rag_config_api_v1_retrieval_config_get",
@@ -38385,7 +38375,7 @@
     "/openai/{path}": {
       "delete": {
         "description": "Deprecated: proxy all requests to OpenAI API.\nDisabled by default. Set ENABLE_OPENAI_API_PASSTHROUGH=True to enable.",
-        "operationId": "proxy_openai__path__put",
+        "operationId": "proxy_openai__path__delete",
         "parameters": [
           {
             "in": "path",
@@ -38429,7 +38419,7 @@
       },
       "get": {
         "description": "Deprecated: proxy all requests to OpenAI API.\nDisabled by default. Set ENABLE_OPENAI_API_PASSTHROUGH=True to enable.",
-        "operationId": "proxy_openai__path__put",
+        "operationId": "proxy_openai__path__delete",
         "parameters": [
           {
             "in": "path",
@@ -38473,7 +38463,7 @@
       },
       "post": {
         "description": "Deprecated: proxy all requests to OpenAI API.\nDisabled by default. Set ENABLE_OPENAI_API_PASSTHROUGH=True to enable.",
-        "operationId": "proxy_openai__path__put",
+        "operationId": "proxy_openai__path__delete",
         "parameters": [
           {
             "in": "path",
@@ -38517,7 +38507,7 @@
       },
       "put": {
         "description": "Deprecated: proxy all requests to OpenAI API.\nDisabled by default. Set ENABLE_OPENAI_API_PASSTHROUGH=True to enable.",
-        "operationId": "proxy_openai__path__put",
+        "operationId": "proxy_openai__path__delete",
         "parameters": [
           {
             "in": "path",
