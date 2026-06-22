@@ -20,7 +20,7 @@ jobs:
       ISSUE_LABEL: spec-drift
       ISSUE_TITLE: "Spec drift detected against live OpenWebUI"
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
 
       - name: Resolve target URL
         id: url
