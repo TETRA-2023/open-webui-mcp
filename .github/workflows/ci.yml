@@ -82,6 +82,7 @@ jobs:
           docker run -d --network none --name "$SMOKE_NAME" \
             -e WEBUI_URL=http://127.0.0.1:9 \
             -e WEBUI_API_KEY=ci \
+            -e OPENWEBUI_SPEC_WAIT_SECONDS=5 \
             mcp-smoke:ci
           docker run --rm -i --network "container:$SMOKE_NAME" python:3.12-alpine \
             python - http http://127.0.0.1:7999/mcp --wait 60 \

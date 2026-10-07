@@ -1,8 +1,11 @@
 name: Spec Drift Monitor
 
 on:
-  schedule:
-    - cron: "0 6 * * *"   # daily at 06:00 UTC
+  # Daily schedule removed 2026-10-07: the wrapper now loads the spec live
+  # from the running Open WebUI at startup, so the bundled snapshot is only a
+  # fallback and its drift no longer reaches production. (The schedule had also
+  # failed 148/148 runs without ever opening an issue: drift exits 1, which
+  # failed the step and skipped the reporting steps.) Run manually if needed.
   workflow_dispatch:
     inputs:
       owui_url:

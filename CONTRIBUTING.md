@@ -1,6 +1,6 @@
 # Contributing to open-webui-mcp
 
-This is a vendored fork of `stephanschielke/open-webui-mcp-server`. We do not maintain wrapper-source changes here — everything under `src/openwebui_mcp/` is byte-identical to the imported upstream commit. Our work in this repo is limited to: vendoring, packaging, CI/release, and operational documentation.
+This is a vendored fork of `stephanschielke/open-webui-mcp-server`, maintained as a hard fork since 2026-10-07 (upstream has been dormant since 2026-04-07). The only wrapper-source change is the live OpenAPI spec loading in `src/openwebui_mcp/openapi_provider.py` (see NOTICE); everything else under `src/openwebui_mcp/` is byte-identical to the imported upstream commit. Because the spec is loaded from the running Open WebUI, the bundled/patched snapshot and the bump procedure below now only matter for the fallback. Our work in this repo is limited to: vendoring, packaging, CI/release, and operational documentation.
 
 ## Repository layout
 

@@ -31,8 +31,15 @@ Modifications in this fork (high-level):
   `-N` (e.g., 0.2.2-1) marks releases that ship such a downstream-only patch
   on top of an unchanged upstream pin.
 
-No source-level changes to the wrapper itself — all of `src/openwebui_mcp/`
-is byte-identical to the imported commit.
+Source-level change (2026-10-07): `src/openwebui_mcp/openapi_provider.py`
+loads the OpenAPI spec live from the running Open WebUI at startup
+(`$WEBUI_URL/openapi.json`, retried while it starts) and falls back to the
+bundled snapshot only when that fails; `OPENWEBUI_SPEC_SOURCE=bundled`
+restores the upstream behaviour. Reason: Open WebUI tracks `:main`, and the
+bundled snapshot had drifted (6 tools returning 404, 67 endpoints missing).
+The rest of `src/openwebui_mcp/` is byte-identical to the imported commit.
+Upstream has had no source change since 2026-04-07, so this fork is
+maintained as a hard fork.
 
 This repository is intentionally disconnected from upstream — there is no
 GitHub fork relationship. A local `upstream` git remote pointing at

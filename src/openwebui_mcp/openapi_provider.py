@@ -6,6 +6,8 @@ injecting per-request authentication and curating which endpoints become tools.
 
 import json
 import os
+import sys
+import time
 from pathlib import Path
 
 import httpx
@@ -17,10 +19,57 @@ from openwebui_mcp.auth import get_user_token
 SPECS_DIR = Path(__file__).parent / "specs"
 
 
-def _load_openapi_spec() -> dict:
+def _load_bundled_spec() -> dict:
     spec_path = SPECS_DIR / "open-webui.openapi.json"
     with open(spec_path) as f:
         return json.load(f)
+
+
+def _fetch_live_spec(url: str, wait: float) -> dict | None:
+    """Fetch the running Open WebUI's spec, retrying while it starts up."""
+    deadline = time.monotonic() + wait
+    last_error: Exception | None = None
+    while True:
+        try:
+            resp = httpx.get(url, timeout=15.0)
+            resp.raise_for_status()
+            spec = resp.json()
+            if spec.get("paths"):
+                return spec
+            last_error = ValueError("spec has no paths")
+        except (httpx.HTTPError, ValueError) as e:
+            last_error = e
+        if time.monotonic() >= deadline:
+            print(f"WARNING: live OpenAPI spec unavailable at {url}: {last_error}", file=sys.stderr)
+            return None
+        time.sleep(3)
+
+
+def _load_openapi_spec() -> dict:
+    """Return the spec the tools are generated from.
+
+    TETRA change: by default the spec is fetched from the running Open WebUI
+    at startup, so the tools always match the deployed version (Open WebUI
+    tracks `:main`, and a bundled snapshot drifted within days). The bundled
+    snapshot is only a fallback, e.g. when Open WebUI is unreachable.
+    OPENWEBUI_SPEC_SOURCE=bundled restores the upstream behaviour.
+    """
+    if os.getenv("OPENWEBUI_SPEC_SOURCE", "live").lower() == "live":
+        webui_url = os.getenv("WEBUI_URL", "http://localhost:3000").rstrip("/")
+        url = os.getenv("OPENWEBUI_SPEC_URL", f"{webui_url}/openapi.json")
+        wait = float(os.getenv("OPENWEBUI_SPEC_WAIT_SECONDS", "120"))
+        spec = _fetch_live_spec(url, wait)
+        if spec is not None:
+            paths = len(spec["paths"])
+            print(f"OpenAPI spec: live from {url} ({paths} paths)", file=sys.stderr)
+            return spec
+        print(
+            "WARNING: falling back to the BUNDLED OpenAPI snapshot; tools may not match Open WebUI",
+            file=sys.stderr,
+        )
+    spec = _load_bundled_spec()
+    print(f"OpenAPI spec: bundled snapshot ({len(spec['paths'])} paths)", file=sys.stderr)
+    return spec
 
 
 def _build_route_maps() -> list[RouteMap]:
