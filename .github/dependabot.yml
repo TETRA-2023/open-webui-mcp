@@ -28,6 +28,12 @@ updates:
       - "dependencies"
       - "advisory"
       - "uv"
+    ignore:
+      # fastmcp majors change the server API this wrapper is built on
+      # (fastmcp 3 -> 4 is PR #67). A major must be adopted upstream and
+      # proven by a container smoke test, not re-proposed every week.
+      - dependency-name: "fastmcp"
+        update-types: ["version-update:semver-major"]
 
   - package-ecosystem: "github-actions"
     directory: "/"
