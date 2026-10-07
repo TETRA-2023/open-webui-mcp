@@ -13,7 +13,7 @@ uv.lock                      vendored verbatim from upstream
 LICENSE                      vendored verbatim from upstream (MIT)
 NOTICE                       fork attribution + modification log
 patches/                     downstream-only assets layered over the byte-identical vendor tree at image build (see "Downstream-only spec patch" below)
-.github/workflows/           release pipeline (gitleaks + lint + Docker build/publish + drift monitor + drift gate)
+.github/workflows/           release pipeline (gitleaks + lint + Docker build/publish + smoke test + manual drift monitor)
 scripts/check-spec-drift.sh           drift-detection helper (path/method + delegation to body-schema check)
 scripts/check-body-schema-drift.py    deep diff of requestBody / parameters / responses for shared ops
 tests/                       vendored upstream integration tests (require docker-compose; not run in CI)
@@ -110,15 +110,13 @@ Default policy when the bundled spec lags live OWUI is to wait for upstream to r
 
 ## Drift detection
 
-The drift workflow has three layers:
+Since 2026-10-07 (#73) the wrapper generates its tools from the running Open WebUI's `/openapi.json` at startup, and TETRA-OPEN-WEBUI restarts it whenever Watchtower updates Open WebUI (`com.centurylinklabs.watchtower.depends-on`). Drift between the bundled snapshot and live Open WebUI therefore only matters for the **fallback** path (Open WebUI unreachable at startup, logged as a `WARNING`).
 
-1. **`scripts/check-spec-drift.sh`** — local, on-demand. Resolves the *effective* wrapper spec (preferring `patches/specs/open-webui.openapi.json` when present, falling back to `src/openwebui_mcp/specs/open-webui.openapi.json`), fetches `/openapi.json` from the live OpenWebUI, and reports four classes of drift: removed operations, added operations, operationId renames, and body-schema deltas (delegated to `scripts/check-body-schema-drift.py`). Override the spec source with `--source <path>` if needed.
+What remains:
 
-2. **`spec-drift-monitor.yml`** — daily 06:00 UTC cron + `workflow_dispatch`. Runs the drift check against the URL stored in the repo variable `OWUI_URL` (overridable via dispatch input). On drift, opens or updates a single tracking issue labelled `spec-drift`. On clean, auto-closes the open tracking issue with a comment. Title is fixed (`Spec drift detected against live OpenWebUI`); do not rename it manually.
-
-3. **`release-image.yml` pre-release gate** — runs the drift check before publishing `:stable` + `:<version>`. A non-zero exit aborts the release. Two emergency overrides: include `[skip-drift]` in the tag annotation message (e.g., `git tag -a -m 'docs-only release [skip-drift]' v0.2.2-2`), or run the workflow via `workflow_dispatch` with `skip_drift_check: true`. The `OWUI_URL` repo variable must be set; if absent, the gate fails closed.
-
-Standard release flow when drift is reported by the monitor: snapshot the live `/openapi.json` into `patches/specs/`, commit + tag a `-N` release, push. The drift gate at release time should then pass cleanly because the `patches/` overlay is the effective spec.
+1. **`scripts/check-spec-drift.sh`** — local, on-demand. Compares the effective bundled spec (`patches/specs/` when present, else `src/openwebui_mcp/specs/`) with a live `/openapi.json`. Use it to decide whether to refresh the fallback snapshot.
+2. **`spec-drift-monitor.yml`** — manual `workflow_dispatch` only (the daily schedule was removed: it failed 148/148 runs without reporting). Note that GitHub-hosted runners get a Cloudflare 403 on the public Open WebUI URL.
+3. The `release-image.yml` pre-release drift gate was **removed**; the release is gated by the container smoke test instead.
 
 ## Releasing
 
