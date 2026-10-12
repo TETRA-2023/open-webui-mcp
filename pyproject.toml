@@ -53,7 +53,7 @@ PyPI = "https://pypi.org/project/openwebui-mcp-server/"
 dependencies = [
     "fastmcp>=3.4.8,<4",
     "httpx>=0.28.1",
-    "pydantic>=2.13.5",
+    "pydantic>=2.14.0",
     "uvicorn>=0.54.0",
 ]
 
