@@ -122,3 +122,18 @@ jobs:
         docker run --rm -i --network "container:$SMOKE_NAME" python:3.12-alpine \
           python - http http://127.0.0.1:7999/mcp --wait 60 \
           < "$SMOKE_TOOLS/scripts/ci/mcp-smoke.py"
+
+  # Tag only (Taiga #2870): tags vX.Y.Z and creates the GitHub Release with the
+  # tetra-release App, nothing is committed to main. The tag (pushed by the App,
+  # not GITHUB_TOKEN) triggers release-image.yml. release.yml is a byte-identical
+  # copy of TETRA-2023/ci-workflows' release.yml: that repo is private, so a
+  # public repo cannot call it. Change it there first, then copy it here.
+  release:
+    needs: [secrets, lint]
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    uses: ./.github/workflows/release.yml
+    with:
+      client-id: ${{ vars.RELEASE_APP_CLIENT_ID }}
+      runs-on: ubuntu-latest
+    secrets:
+      app-key: ${{ secrets.RELEASE_APP_KEY }}
