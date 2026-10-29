@@ -1,6 +1,7 @@
 [project]
 name = "openwebui-mcp-server"
-version = "0.2.2"
+# Real version = git tag vX.Y.Z (see GitHub Releases); never bumped here. Taiga #2870.
+version = "0.0.0"
 description = "Model Context Protocol (MCP) server for Open WebUI - manage users, groups, models, knowledge bases, and more via AI assistants"
 readme = "README.md"
 requires-python = ">=3.10"
@@ -87,3 +88,18 @@ asyncio_mode = "auto"
 markers = [
     "integration: marks tests as integration tests (require docker-compose)",
 ]
+
+[tool.semantic_release]
+branch = "main"
+# Still 0.x: a feat bumps the minor, never straight to 1.0.0 (PSR 10 default).
+allow_zero_version = true
+major_on_zero = false
+
+[tool.semantic_release.commit_parser_options]
+allowed_tags = ["build", "chore", "ci", "docs", "feat", "fix", "perf", "style", "refactor", "test"]
+minor_tags = ["feat"]
+patch_tags = ["fix", "perf"]
+
+[tool.semantic_release.remote]
+type = "github"
+token = { env = "GH_TOKEN" }
