@@ -46,3 +46,7 @@ updates:
     labels:
       - "dependencies"
       - "github-actions"
+    commit-message:
+      # Action pins are CI-only: "ci(deps): ..." never cuts a release (US-7 #2938).
+      prefix: "ci"
+      include: "scope"
