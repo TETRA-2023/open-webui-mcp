@@ -2,13 +2,12 @@
 #
 # Two ecosystems are watched:
 #
-# - `uv`: opens PRs when transitive Python deps in `uv.lock` have known CVEs
-#   or version updates. **These PRs are advisory.** Per CONTRIBUTING.md the
-#   vendored files (`pyproject.toml`, `uv.lock`) must stay byte-identical to
-#   upstream `stephanschielke/open-webui-mcp-server`. Treat each PR as a
-#   signal to push the fix upstream and re-pin our SHA — do NOT merge into
-#   `main` directly unless you're consciously accepting fork divergence (and
-#   updating NOTICE accordingly). Limit kept low so the channel doesn't flood.
+# - `uv`: opens PRs for Python deps in `uv.lock` / `pyproject.toml` (CVEs and
+#   version updates). Minor/patch PRs are auto-merged like in every MCP repo
+#   (decision rva 2026-11-02, Taiga US-7 #2938): runtime deps -> `fix(deps)`,
+#   which cuts a patch release so the fix reaches `:stable`; dev deps ->
+#   `chore(deps-dev)`, no release. This is a hard fork since 2026-10-07, so
+#   these bumps diverge from upstream's `uv.lock` on purpose.
 #
 # - `github-actions`: workflow files we authored (.github/workflows/{ci,
 #   release-image}.yml). PRs here are mergeable as-is — they only touch our
@@ -26,8 +25,11 @@ updates:
     open-pull-requests-limit: 5
     labels:
       - "dependencies"
-      - "advisory"
       - "uv"
+    commit-message:
+      prefix: "fix"
+      prefix-development: "chore"
+      include: "scope"
     ignore:
       # fastmcp majors change the server API this wrapper is built on
       # (fastmcp 3 -> 4 is PR #67). A major must be adopted upstream and
