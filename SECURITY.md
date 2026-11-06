@@ -11,7 +11,7 @@
 If you discover a security vulnerability:
 
 1. **DO NOT** open a public GitHub issue.
-2. Email the maintainers directly with details and reproduction steps.
+2. Open a private security advisory on this repository ([Security → Report a vulnerability](https://github.com/TETRA-2023/open-webui-mcp/security/advisories/new)) with details and reproduction steps.
 
 We aim to acknowledge within 48 hours and patch critical issues within 7 days. For vulnerabilities in the underlying wrapper logic (anything under `src/openwebui_mcp/`), please also report upstream to https://github.com/stephanschielke/open-webui-mcp-server — we vendor that source verbatim.
 
