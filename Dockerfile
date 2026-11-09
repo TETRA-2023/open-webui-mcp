@@ -11,7 +11,7 @@ COPY pyproject.toml uv.lock README.md ./
 COPY src/openwebui_mcp/specs/ ./src/openwebui_mcp/specs/
 
 # Install dependencies
-RUN uv --python-preference=only-system sync --locked --no-install-project
+RUN uv --python-preference=only-system sync --locked --no-dev --no-install-project
 
 # Copy application code
 COPY src/ ./src/
@@ -22,7 +22,7 @@ COPY src/ ./src/
 COPY patches/specs/open-webui.openapi.json ./src/openwebui_mcp/specs/open-webui.openapi.json
 
 # Install the project itself
-RUN uv --python-preference=only-system sync --locked
+RUN uv --python-preference=only-system sync --locked --no-dev
 
 # Environment variables
 ENV PYTHONUNBUFFERED=1
