@@ -58,7 +58,11 @@ dependencies = [
     "uvicorn>=0.54.0",
 ]
 
-[project.optional-dependencies]
+[dependency-groups]
+# Dev tools live here, not in a [project.optional-dependencies] extra:
+# Dependabot treats an extra as a runtime dependency (fix(deps), which cuts a
+# release) and a dependency group as development (chore(deps-dev)). The image
+# installs with --no-dev (Taiga T25.5 #3569).
 dev = [
     "pytest>=9.2.0",
     "pytest-asyncio>=1.4.1.post1",
